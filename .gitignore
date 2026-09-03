@@ -1,0 +1,44 @@
+# --- data (lives on fast local storage, never committed) ---
+data
+data/
+*.h5ad
+*.zarr/
+*.parquet
+*.npz
+
+# --- JUMP metadata: fetched from upstream, see notebooks/README.md ---
+metadata/
+
+# --- local working files, not part of the tutorials ---
+plans/
+scripts/activate.sh
+scripts/debug_feature_select.py
+scripts/eval_image_features.py
+scripts/obs_utils.py
+notebooks/Untitled.ipynb
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- tooling caches ---
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- editors / os ---
+.DS_Store
+.vscode/
+.idea/
+cufile.log
+env/
+notebooks/downstream-tasks-*.ipynb

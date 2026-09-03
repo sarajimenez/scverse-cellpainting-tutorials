@@ -1,0 +1,58 @@
+name: cellpainting
+channels:
+  - rapidsai
+  - conda-forge
+  - nvidia
+  - bioconda
+dependencies:
+  # --- core / CUDA-X ---
+  - python=3.13
+  - rapids=26.08          # cudf, cuml, cugraph, cucim, dask-cuda, raft, ...
+  - cuda-version=13.*
+  - cucim                 # explicit: CUDA-X image IO / GPU scikit-image ops
+  - cudnn
+  - cutensor
+  - cusparselt
+
+  # --- scverse ---
+  - anndata
+  - scanpy
+  - squidpy
+  - spatialdata
+  - spatialdata-io
+  - spatialdata-plot
+  - pertpy
+  - mudata
+
+  # --- Cell Painting / image-profiling ---
+  - pycytominer
+
+  # --- data access (JUMP cpg0016 lives on public S3) ---
+  - pyarrow
+  - fsspec
+  - s3fs
+  - zarr
+  - h5py
+
+  # --- classic ML / stats ---
+  - scikit-learn
+  - scikit-image
+  - statsmodels
+  - umap-learn
+  - python-igraph
+  - leidenalg
+  - harmonypy
+
+  # --- notebooks / viz ---
+  - jupyterlab
+  - ipywidgets
+  - ipykernel
+  - matplotlib-base
+  - seaborn
+  - tqdm
+
+  - pip
+  - pip:
+      - rapids-singlecell-cu13
+      - decoupler            # 2.x is PyPI-only; conda-forge is stuck at 1.5
+      - scikit-misc
