@@ -71,7 +71,7 @@ Set `EU_OS_H5AD` if your copy is not at `data/eu_os_imtm_hepg2.h5ad`.
 | --- | --- | --- |
 | [`01_dimensionality_reduction_and_clustering.ipynb`](notebooks/01_dimensionality_reduction_and_clustering.ipynb) | Dimensionality reduction, Clustering | ~30 s |
 | [`02_feature_family_enrichment_decoupler.ipynb`](notebooks/02_feature_family_enrichment_decoupler.ipynb) | Pathway / gene-set analysis | ~15 s |
-| [`03_perturbation_analysis_pertpy.ipynb`](notebooks/03_perturbation_analysis_pertpy.ipynb) | Perturbation modelling | ~20 s |
+| [`03_perturbation_analysis_pertpy.ipynb`](notebooks/03_perturbation_analysis_pertpy.ipynb) | Perturbation modelling | ~40 s |
 
 These are **backbone notebooks**: every cell runs against the dataset above, and points
 where you should make a judgement call are marked **TODO**. They are committed without
@@ -101,6 +101,10 @@ Findings that came out of writing them, each reproducible from the notebooks:
   changes the headline.
 - **`ulm` equals `zscore` on unweighted sets.** With binary membership and no covariates
   the two correlate at r = 1.00; `ulm` only earns its keep once sets carry weights.
+- **Permutation count silently caps significance.** `pt.tl.DistanceTest` cannot return a
+  p-value below ~`1/n_perms`, so at `n_perms=100` across 23 groups Holm-Šidák leaves
+  **zero** significant results (smallest adjusted p = 0.21) however large the effects.
+  At `n_perms=1000`, 22 of 23 are significant. Keep `n_perms` well above `n_groups / alpha`.
 - **Feature families recover known biology.** Tubulin binders shift `channel:DNA` by
   -4.2 z and `channel:AGP` by +2.3 — mitotic arrest and cytoskeletal collapse, legible
   because the features were grouped.
