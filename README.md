@@ -76,9 +76,10 @@ Set `EU_OS_H5AD` if your copy is not at `data/eu_os_imtm_hepg2.h5ad`.
 **Run notebook 01 first.** Its last section writes
 `data/eu_os_imtm_hepg2_integrated.h5ad`, which notebooks 02 and 03 load instead of
 recomputing. That object carries all four matrices, both Harmony embeddings, UMAP, Leiden
-labels, and a record of every choice in `uns['integration']` — including `BATCH_KEY`, which
-notebooks 02 and 03 read from there, so changing it in notebook 01 propagates through the
-series. Both downstream notebooks fall back to the raw object if it is missing.
+labels, and a record of every choice in `uns['integration']` — including `BATCH_KEY`
+(default `"Replicate"`), which notebooks 02 and 03 read from there, so changing it in
+notebook 01 propagates through the series. Both downstream notebooks fall back to the raw
+object if it is missing.
 
 These are **backbone notebooks**: every cell runs against the dataset above, and points
 where you should make a judgement call are marked **TODO**. They are committed without
@@ -102,11 +103,11 @@ Findings that came out of writing them, each reproducible from the notebooks:
   called a mechanism.
 - **Well position is a first-class confound.** Per-plate normalisation removes the plate
   offset but not a gradient recurring at the same coordinates on every plate.
-- **State your reproducibility null.** On the uncorrected PCA, percent replicating is
-  **81%** against a random null but **64%** when the null controls for well position — a
-  17-point swing on a choice that often goes unstated. Same-compound wells reach +0.61 mean
-  similarity against +0.12 for wells merely sharing a plate coordinate, so the signal is
-  real; the null still changes the headline.
+- **State your reproducibility null.** Percent replicating is **82%** against a random null
+  but **65%** when the null controls for well position — a 16-point swing on a choice that
+  often goes unstated. Same-compound wells reach +0.61 mean similarity against +0.12 for
+  wells merely sharing a plate coordinate, so the signal is real; the null still changes the
+  headline.
 - **Regressing out cell count trades biology for consistency.** `cell_count` correlates
   with PC1 at r = 0.57, but for cytotoxic and antimitotic compounds a low cell count *is*
   the phenotype. Running `sc.pp.regress_out` on it costs 0.11 of tubulin-binder AUROC,
@@ -115,12 +116,14 @@ Findings that came out of writing them, each reproducible from the notebooks:
   support. Reproducibility, meanwhile, *improves* (66% -> 70%). Both are real: cell count
   is part technical axis, part readout, and a per-feature OLS cannot separate them. Kept as
   a layer, not applied to `.X`.
-- **`Plate` is a design variable, not a batch.** All 2,456 treated compounds sit on exactly
-  one library plate, so "remove what is specific to this plate" and "remove what is
-  specific to these compounds" are the same instruction. Harmony on `Plate` does drop plate
-  eta-squared from 0.030 to 0.003, but costs 5.6 points of percent replicating. Harmony on
-  `Replicate` — the actual technical repeat, with all ~2,440 compounds in each — converges
-  in one iteration and takes nothing away. Neither touches the dominant confound: `Well`
+- **Batch-correct the repeat, not the layout.** All 2,456 treated compounds sit on exactly
+  one library plate, so for `Plate` "remove what is specific to this plate" and "remove what
+  is specific to these compounds" are the same instruction. Harmony on `Plate` does drop
+  plate eta-squared from 0.030 to 0.003, but costs 5.6 points of percent replicating
+  (65.7% -> 60.1%). Harmony on `Replicate` — the actual technical repeat, with all ~2,440
+  compounds in each — converges in one iteration and takes nothing away (65.7% -> 66.0%).
+  The notebooks default to `BATCH_KEY = "Replicate"` for that reason; `"Plate"` and `None`
+  are one-line alternatives. Neither correction touches the dominant confound: `Well`
   position, at eta-squared = 0.156, five times `Plate` and forty times `Replicate`.
 - **`ulm` equals `zscore` on unweighted sets.** With binary membership and no covariates
   the two correlate at r = 1.00; `ulm` only earns its keep once sets carry weights.
