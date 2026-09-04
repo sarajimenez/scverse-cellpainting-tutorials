@@ -69,13 +69,21 @@ Set `EU_OS_H5AD` if your copy is not at `data/eu_os_imtm_hepg2.h5ad`.
 
 | Notebook | Chapter it mirrors | Runtime |
 | --- | --- | --- |
-| [`01_dimensionality_reduction_and_clustering.ipynb`](notebooks/01_dimensionality_reduction_and_clustering.ipynb) | Dimensionality reduction, Clustering | ~30 s |
+| [`01_dimensionality_reduction_and_clustering.ipynb`](notebooks/01_dimensionality_reduction_and_clustering.ipynb) | Dimensionality reduction, Clustering, Integration | ~90 s |
 | [`02_feature_family_enrichment_decoupler.ipynb`](notebooks/02_feature_family_enrichment_decoupler.ipynb) | Pathway / gene-set analysis | ~15 s |
-| [`03_perturbation_analysis_pertpy.ipynb`](notebooks/03_perturbation_analysis_pertpy.ipynb) | Perturbation modelling | ~40 s |
+| [`03_perturbation_analysis_pertpy.ipynb`](notebooks/03_perturbation_analysis_pertpy.ipynb) | Perturbation modelling | ~37 s |
+
+**Run notebook 01 first.** Its last section writes
+`data/eu_os_imtm_hepg2_integrated.h5ad`, which notebooks 02 and 03 load instead of
+recomputing. That object carries all four matrices, both Harmony embeddings, UMAP, Leiden
+labels, and a record of every choice in `uns['integration']` — including `BATCH_KEY`, which
+notebooks 02 and 03 read from there, so changing it in notebook 01 propagates through the
+series. Both downstream notebooks fall back to the raw object if it is missing.
 
 These are **backbone notebooks**: every cell runs against the dataset above, and points
 where you should make a judgement call are marked **TODO**. They are committed without
-outputs — run them to fill in.
+outputs — run them to fill in. Slide-ready PNGs of the figures that carry an argument are
+committed under [`figures/`](figures/).
 
 The data-preparation notebooks under `notebooks/` (adapted from
 [timtreis/2024_broad_hackathon](https://github.com/timtreis/2024_broad_hackathon)) build a
@@ -94,11 +102,26 @@ Findings that came out of writing them, each reproducible from the notebooks:
   called a mechanism.
 - **Well position is a first-class confound.** Per-plate normalisation removes the plate
   offset but not a gradient recurring at the same coordinates on every plate.
-- **State your reproducibility null.** Percent replicating is **81%** against a random
-  null but **64%** when the null controls for well position — a 17-point swing on a choice
-  that often goes unstated. Same-compound wells reach +0.61 mean similarity against +0.12
-  for wells merely sharing a plate coordinate, so the signal is real; the null still
-  changes the headline.
+- **State your reproducibility null.** On the uncorrected PCA, percent replicating is
+  **81%** against a random null but **64%** when the null controls for well position — a
+  17-point swing on a choice that often goes unstated. Same-compound wells reach +0.61 mean
+  similarity against +0.12 for wells merely sharing a plate coordinate, so the signal is
+  real; the null still changes the headline.
+- **Regressing out cell count trades biology for consistency.** `cell_count` correlates
+  with PC1 at r = 0.57, but for cytotoxic and antimitotic compounds a low cell count *is*
+  the phenotype. Running `sc.pp.regress_out` on it costs 0.11 of tubulin-binder AUROC,
+  39% of their E-distance from DMSO, and a fifth of the `channel:DNA` signature — while
+  flipping `channel:Mito` from +0.7 to **-5.0** and inviting a mechanism the data does not
+  support. Reproducibility, meanwhile, *improves* (66% -> 70%). Both are real: cell count
+  is part technical axis, part readout, and a per-feature OLS cannot separate them. Kept as
+  a layer, not applied to `.X`.
+- **`Plate` is a design variable, not a batch.** All 2,456 treated compounds sit on exactly
+  one library plate, so "remove what is specific to this plate" and "remove what is
+  specific to these compounds" are the same instruction. Harmony on `Plate` does drop plate
+  eta-squared from 0.030 to 0.003, but costs 5.6 points of percent replicating. Harmony on
+  `Replicate` — the actual technical repeat, with all ~2,440 compounds in each — converges
+  in one iteration and takes nothing away. Neither touches the dominant confound: `Well`
+  position, at eta-squared = 0.156, five times `Plate` and forty times `Replicate`.
 - **`ulm` equals `zscore` on unweighted sets.** With binary membership and no covariates
   the two correlate at r = 1.00; `ulm` only earns its keep once sets carry weights.
 - **Permutation count silently caps significance.** `pt.tl.DistanceTest` cannot return a
@@ -122,7 +145,7 @@ pip install -e ".[tutorials]"
 
 CPU-only is fine — nothing in these three notebooks needs a GPU.
 `cellpainting-lock.txt` records the exact solved environment used to produce the numbers
-above (scanpy 1.12.4, anndata 0.13.3, decoupler 2.2.0, pertpy 1.3.0).
+above (scanpy 1.12.4, anndata 0.13.3, decoupler 2.2.0, pertpy 1.3.0, harmonypy 2.0.0).
 
 ## The `cellpainting_scverse` helper package
 
@@ -137,7 +160,16 @@ Small, installable, and used by the notebooks:
   AnnData.
 - `drop_image_features` — see the trap below.
 
-## A trap worth knowing about
+## Traps worth knowing about
+
+### `sc.external.pp.harmony_integrate` is broken against harmonypy 2.0
+
+scanpy 1.12.4 transposes `Z_corr`, which harmonypy 2.0.0 already returns as
+`n_obs x n_pcs`, so the call fails with an `obsm` shape error. Notebook 01 calls
+`harmonypy.run_harmony` directly instead — two lines, and it pins both versions in the
+text.
+
+### `Image_*` features survive feature selection
 
 `pycytominer >= 1.5.0` returns `Image_*` columns from `normalize()` **un-normalized**,
 through a passthrough added for OME-Arrow image payloads. But in CellProfiler `Image_` is
